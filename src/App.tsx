@@ -1,62 +1,59 @@
 import { useFrame } from "@react-three/fiber";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
-import { PerspectiveCamera } from "@react-three/drei";
-import type { PerspectiveCamera as PerspectiveCameraType } from "three";
-import { Euler } from "three";
+import { Environment, PointerLockControls } from "@react-three/drei";
 import { Vector3 } from "three";
-import { clamp } from "three/src/math/MathUtils.js";
+import type { PointerLockControls as PointerLockControlsType } from "three-stdlib/controls/PointerLockControls";
+import { KernelSize } from "postprocessing";
 
-const MAP_SIZE = 11;
-const FORWARD_SPEED = 0.05;
-const ROTATION_SPEED = 0.03;
+const SPEED = 0.05;
 
-const presssed = {} as { [key: string]: boolean };
-
-document.addEventListener("keydown", (evt) => (presssed[evt.key] = true));
-document.addEventListener("keyup", (evt) => (presssed[evt.key] = false));
+const pressed = {} as { [key: string]: boolean };
+document.addEventListener("keydown", (evt) => (pressed[evt.code] = true));
+document.addEventListener("keyup", (evt) => (pressed[evt.code] = false));
 
 export const App = () => {
-  const cam = useRef<PerspectiveCameraType>(null);
-
-  const [position, setPosition] = useState(new Vector3(0, 0, 0.5));
-  const [rotation, setRotation] = useState(new Euler(Math.PI / 2, 0, 0));
+  const controls = useRef<PointerLockControlsType>(null);
 
   useFrame(() => {
-    if (!cam.current) return;
-
-    const d = new Vector3(0, 0, -FORWARD_SPEED);
-    d.applyEuler(rotation);
-    if (presssed.z || presssed.ArrowUp) position.add(d);
-    if (presssed.d || presssed.ArrowRight) rotation.y -= ROTATION_SPEED;
-    if (presssed.s || presssed.ArrowDown) position.sub(d);
-    if (presssed.q || presssed.ArrowLeft) rotation.y += ROTATION_SPEED;
-
-    position.x = clamp(position.x, -MAP_SIZE / 2, MAP_SIZE / 2);
-    position.y = clamp(position.y, -MAP_SIZE / 2, MAP_SIZE / 2);
-
-    setPosition(position.clone());
-    setRotation(rotation.clone());
+    if (!controls.current) return;
+    const d = new Vector3(0, 0, 0);
+    if (pressed.KeyQ) d.y += SPEED;
+    if (pressed.KeyW) d.z -= SPEED;
+    if (pressed.KeyE) d.y -= SPEED;
+    if (pressed.KeyD) d.x += SPEED;
+    if (pressed.KeyS) d.z += SPEED;
+    if (pressed.KeyA) d.x -= SPEED;
+    d.applyEuler(controls.current.camera.rotation);
+    controls.current.camera.position.add(d);
   });
 
   return (
     <>
-      <mesh>
-        <planeGeometry args={[MAP_SIZE, MAP_SIZE, MAP_SIZE, MAP_SIZE]} />
-        <meshStandardMaterial color="white" wireframe />
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[0.5, 16, 32]} />
+        <meshStandardMaterial roughness={0} metalness={1} />
       </mesh>
 
-      <ambientLight />
+      <mesh>
+        <boxGeometry args={[20, 20, 20, 20, 20, 20]} />
+        <meshBasicMaterial wireframe color={"lime"} />
+      </mesh>
 
-      <PerspectiveCamera
-        ref={cam}
-        makeDefault
-        position={position}
-        rotation={rotation}
-      />
+      <axesHelper />
+
+      <ambientLight />
+      <hemisphereLight />
+      <Environment preset="dawn" background />
+
+      <PointerLockControls pointerSpeed={1} ref={controls} />
 
       <EffectComposer>
-        <Bloom luminanceThreshold={0.2} />
+        <Bloom
+          luminanceThreshold={0.9}
+          intensity={0.2}
+          kernelSize={KernelSize.LARGE}
+        />
       </EffectComposer>
     </>
   );
