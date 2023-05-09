@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { Environment, PointerLockControls } from "@react-three/drei";
 import type { Mesh, Raycaster } from "three";
+import { Euler } from "three";
 import { Vector2 } from "three";
 import { Vector3 } from "three";
 import type { PointerLockControls as PointerLockControlsType } from "three-stdlib/controls/PointerLockControls";
@@ -10,7 +11,7 @@ import { x } from "./shorts";
 import { KernelSize } from "postprocessing";
 
 const SPEED = 0.2;
-const SIZE = 20;
+const SIZE = 25;
 
 const rpos = () =>
   new Vector3(
@@ -24,6 +25,7 @@ document.addEventListener("keydown", (evt) => (pressed[evt.code] = true));
 document.addEventListener("keyup", (evt) => (pressed[evt.code] = false));
 
 export const App = () => {
+  const f = useRef(0);
   const controls = useRef<PointerLockControlsType>(null);
   const raycaster = useRef<Raycaster>(null);
 
@@ -39,6 +41,7 @@ export const App = () => {
   );
 
   useFrame(() => {
+    f.current++;
     if (!controls.current || !raycaster.current) return;
     const d = new Vector3(0, 0, 0);
     if (pressed.KeyQ) d.y += SPEED;
@@ -59,7 +62,7 @@ export const App = () => {
       for (const box of boxes) if (box.ref === object) box.pointed = true;
     }
 
-    if (pressed.Space) {
+    if (pressed.Space && pressed.KeyW) {
       for (const box of boxes) {
         if (box.pointed) {
           box.position = rpos();
@@ -86,6 +89,23 @@ export const App = () => {
           />
         </mesh>
       ))}
+
+      <mesh
+        position={(() => {
+          const d = new Vector3(0, 0, -1);
+          const position = new Vector3(0, 0, 0);
+          if (controls.current) {
+            d.applyEuler(controls.current.camera.rotation);
+            position.add(controls.current.camera.position.clone());
+          }
+          position.add(d);
+          return position;
+        })()}
+        rotation={new Euler(f.current / 50, 0, 0)}
+      >
+        <sphereGeometry args={[0.1, 4, 2]} />
+        <meshStandardMaterial color="red" wireframe />
+      </mesh>
 
       <ambientLight />
       <hemisphereLight />
